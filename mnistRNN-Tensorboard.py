@@ -23,7 +23,7 @@ def plot_history(history):
     plt.legend(loc='lower right')
     plt.show()
 
-log_filepath = './log'
+log_filepath = './log' # tensorboard
 ###############################
 #         データの生成          #
 ###############################
@@ -58,12 +58,19 @@ def weight_variable(shape, name=None):
 
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1)
 
-old_session = KTF.get_session()
+old_session = KTF.get_session() # tensorboard
 
 with tf.Graph().as_default():
+    # tensorboard
     session = tf.Session('')
     KTF.set_session(session)
     KTF.set_learning_phase(1)
+
+    # image処理
+    # 読み込むべきはX_trainではない気がする
+    X_train_img = tf.reshape(X_train, [-1, 28, 28, 1])
+    X_train_img = tf.cast(X_train_img, tf.float32)
+    tf.summary.image('train',X_train_img , 10)
 
     model = Sequential()
     model.add(Bidirectional(LSTM(n_hidden),input_shape=(n_time, n_in)))
@@ -71,24 +78,30 @@ with tf.Graph().as_default():
     model.add(Activation('softmax'))
     model.summary()
 
+    # AdaDelta良い説！！！！！！！！！！！！１
     optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
     model.compile(optimizer=optimizer,
                   loss='mean_squared_error',
                   metrics=['accuracy'])
 
-    tb_cb = keras.callbacks.TensorBoard(log_dir=log_filepath, histogram_freq=1)
+    tb_cb = keras.callbacks.TensorBoard(
+                                log_dir=log_filepath,
+                                histogram_freq=1,
+                                embeddings_freq=100)
+                                 # tensorboard
 
     ###############################
     #         モデルの学習          #
     ###############################
-    epochs = 60
+    # epochs = 60
+    epochs = 3
     batch_size = 200
 
     his = model.fit(X_train, Y_train,
                     batch_size=batch_size,
                     epochs=epochs,
                     validation_data=(X_test,Y_test),
-                    callbacks=[early_stopping,tb_cb])
+                    callbacks=[early_stopping,tb_cb]) # tensorboard
 
     ###############################
     #         モデルの予測          #
@@ -98,4 +111,5 @@ with tf.Graph().as_default():
     print('acc:{}'.format(score[1]))
     plot_history(his)
 
+# tensorboard
 KTF.set_session(old_session)
